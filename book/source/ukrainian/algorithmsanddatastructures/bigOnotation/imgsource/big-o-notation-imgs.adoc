@@ -1,0 +1,177 @@
+
+За допомогою _Big O Notation_ визначається складність алгоритмів. Це математичний спосіб опису того, як змінюється час виконання або обсяг використовуваної пам'яті алгоритму в залежності від розміру вхідних даних (N).
+
+[[java-collection-framework-big-o-notation]]
+Основні варіанти складності алгоритмів (від найкращого до найгіршого):
+
+- *O(1)* — константний час;
+- *O(log(log N))* — подвійний логарифмічний час;
+- *O(log N)* — логарифмічний час;
+- *O(√N)* — складність квадратного кореня;
+- *O(N)* — лінійний час;
+- *O(N log N)* — лінійно-логарифмічний час;
+- *O(N^2)* — квадратичний час;
+- *O(N^3)* — кубічний час;
+- *O(2^N)* — експоненціальний час;
+- *O(N!)* — факторіальний час.
+
+
+== Графік O(1)
+++++
+<svg viewBox="0 0 500 300" width="100%" height="300" style="background: #fdfdfd; border: 1px solid #ddd; font-family: sans-serif;">
+  <line x1="50" y1="150" x2="480" y2="150" stroke="#888" stroke-width="2"/>
+  <line x1="50" y1="20" x2="50" y2="260" stroke="#888" stroke-width="2"/>
+  <path d="M 480 146 L 490 150 L 480 154 Z" fill="#888"/>
+  <path d="M 46 20 L 50 10 L 54 20 Z" fill="#888"/>
+  <text x="485" y="170" font-size="14">N</text>
+  <text x="25" y="20" font-size="14">t</text>
+  
+  <line x1="50" y1="80" x2="480" y2="80" stroke="#2196F3" stroke-width="3"/>
+  <circle cx="350" cy="50" r="5" fill="#2196F3"/>
+  <text x="365" y="55" font-size="14" fill="#333">y = C</text>
+</svg>
+++++
+
+== Графік O(log(log N))
+++++
+<svg viewBox="0 0 500 300" width="100%" height="300" style="background: #fdfdfd; border: 1px solid #ddd; font-family: sans-serif;">
+  <line x1="50" y1="150" x2="480" y2="150" stroke="#888" stroke-width="2"/>
+  <line x1="50" y1="20" x2="50" y2="260" stroke="#888" stroke-width="2"/>
+  <path d="M 480 146 L 490 150 L 480 154 Z" fill="#888"/>
+  <path d="M 46 20 L 50 10 L 54 20 Z" fill="#888"/>
+  <text x="485" y="170" font-size="14">N</text>
+  <text x="25" y="20" font-size="14">t</text>
+
+  <path d="M 50.1 260 Q 55 180, 70 145 T 151 120 Q 300 100, 420 95" fill="none" stroke="#2e8b57" stroke-width="3"/>
+  <circle cx="330" cy="30" r="5" fill="#2e8b57"/>
+  <text x="345" y="35" font-size="14" fill="#333">y = log(log(x))</text>
+</svg>
+++++
+
+== Графік O(log N)
+++++
+<svg viewBox="0 0 500 300" width="100%" height="300" style="background: #fdfdfd; border: 1px solid #ddd; font-family: sans-serif;">
+  <line x1="50" y1="150" x2="480" y2="150" stroke="#888" stroke-width="2"/>
+  <line x1="50" y1="20" x2="50" y2="260" stroke="#888" stroke-width="2"/>
+  <path d="M 480 146 L 490 150 L 480 154 Z" fill="#888"/>
+  <path d="M 46 20 L 50 10 L 54 20 Z" fill="#888"/>
+  <text x="485" y="170" font-size="14">N</text>
+  <text x="25" y="20" font-size="14">t</text>
+
+  <path d="M 54 250 Q 58 200, 62 170 T 75 130 Q 92 100, 134 76 T 218 50 Q 302 34, 470 20" fill="none" stroke="#ff4500" stroke-width="3"/>
+  <circle cx="350" cy="50" r="5" fill="#ff4500"/>
+  <text x="365" y="55" font-size="14" fill="#333">y = log(x)</text>
+</svg>
+++++
+
+== Графік O(√N)
+++++
+<svg viewBox="0 0 500 300" width="100%" height="300" style="background: #fdfdfd; border: 1px solid #ddd; font-family: sans-serif;">
+  <line x1="50" y1="150" x2="480" y2="150" stroke="#888" stroke-width="2"/>
+  <line x1="50" y1="20" x2="50" y2="260" stroke="#888" stroke-width="2"/>
+  <path d="M 480 146 L 490 150 L 480 154 Z" fill="#888"/>
+  <path d="M 46 20 L 50 10 L 54 20 Z" fill="#888"/>
+  <text x="485" y="170" font-size="14">N</text>
+  <text x="25" y="20" font-size="14">t</text>
+
+  <path d="M 50 150 Q 150 50, 480 30" fill="none" stroke="#9C27B0" stroke-width="3"/>
+  <circle cx="350" cy="60" r="5" fill="#9C27B0"/>
+  <text x="365" y="65" font-size="14" fill="#333">y = √x</text>
+</svg>
+++++
+
+== Графік O(N)
+++++
+<svg viewBox="0 0 500 300" width="100%" height="300" style="background: #fdfdfd; border: 1px solid #ddd; font-family: sans-serif;">
+  <line x1="50" y1="260" x2="480" y2="260" stroke="#888" stroke-width="2"/>
+  <line x1="50" y1="20" x2="50" y2="260" stroke="#888" stroke-width="2"/>
+  <path d="M 480 256 L 490 260 L 480 264 Z" fill="#888"/>
+  <path d="M 46 20 L 50 10 L 54 20 Z" fill="#888"/>
+  <text x="485" y="280" font-size="14">N</text>
+  <text x="25" y="20" font-size="14">t</text>
+
+  <line x1="50" y1="260" x2="400" y2="40" stroke="#4CAF50" stroke-width="3"/>
+  <circle cx="350" cy="100" r="5" fill="#4CAF50"/>
+  <text x="365" y="105" font-size="14" fill="#333">y = x</text>
+</svg>
+++++
+
+== Графік O(N log N)
+++++
+<svg viewBox="0 0 500 300" width="100%" height="300" style="background: #fdfdfd; border: 1px solid #ddd; font-family: sans-serif;">
+  <line x1="50" y1="260" x2="480" y2="260" stroke="#888" stroke-width="2"/>
+  <line x1="50" y1="20" x2="50" y2="260" stroke="#888" stroke-width="2"/>
+  <path d="M 480 256 L 490 260 L 480 264 Z" fill="#888"/>
+  <path d="M 46 20 L 50 10 L 54 20 Z" fill="#888"/>
+  <text x="485" y="280" font-size="14">N</text>
+  <text x="25" y="20" font-size="14">t</text>
+
+  <path d="M 50 260 Q 150 200, 400 30" fill="none" stroke="#FF9800" stroke-width="3"/>
+  <circle cx="350" cy="150" r="5" fill="#FF9800"/>
+  <text x="365" y="155" font-size="14" fill="#333">y = x * log(x)</text>
+</svg>
+++++
+
+== Графік O(N^2)
+++++
+<svg viewBox="0 0 500 300" width="100%" height="300" style="background: #fdfdfd; border: 1px solid #ddd; font-family: sans-serif;">
+  <line x1="50" y1="260" x2="480" y2="260" stroke="#888" stroke-width="2"/>
+  <line x1="50" y1="20" x2="50" y2="260" stroke="#888" stroke-width="2"/>
+  <path d="M 480 256 L 490 260 L 480 264 Z" fill="#888"/>
+  <path d="M 46 20 L 50 10 L 54 20 Z" fill="#888"/>
+  <text x="485" y="280" font-size="14">N</text>
+  <text x="25" y="20" font-size="14">t</text>
+
+  <path d="M 50 260 Q 150 250, 300 30" fill="none" stroke="#F44336" stroke-width="3"/>
+  <circle cx="350" cy="100" r="5" fill="#F44336"/>
+  <text x="365" y="105" font-size="14" fill="#333">y = x²</text>
+</svg>
+++++
+
+== Графік O(N^3)
+++++
+<svg viewBox="0 0 500 300" width="100%" height="300" style="background: #fdfdfd; border: 1px solid #ddd; font-family: sans-serif;">
+  <line x1="50" y1="260" x2="480" y2="260" stroke="#888" stroke-width="2"/>
+  <line x1="50" y1="20" x2="50" y2="260" stroke="#888" stroke-width="2"/>
+  <path d="M 480 256 L 490 260 L 480 264 Z" fill="#888"/>
+  <path d="M 46 20 L 50 10 L 54 20 Z" fill="#888"/>
+  <text x="485" y="280" font-size="14">N</text>
+  <text x="25" y="20" font-size="14">t</text>
+
+  <path d="M 50 260 Q 100 255, 180 30" fill="none" stroke="#795548" stroke-width="3"/>
+  <circle cx="350" cy="70" r="5" fill="#795548"/>
+  <text x="365" y="75" font-size="14" fill="#333">y = x³</text>
+</svg>
+++++
+
+== Графік O(2^N)
+++++
+<svg viewBox="0 0 500 300" width="100%" height="300" style="background: #fdfdfd; border: 1px solid #ddd; font-family: sans-serif;">
+  <line x1="50" y1="260" x2="480" y2="260" stroke="#888" stroke-width="2"/>
+  <line x1="50" y1="20" x2="50" y2="260" stroke="#888" stroke-width="2"/>
+  <path d="M 480 256 L 490 260 L 480 264 Z" fill="#888"/>
+  <path d="M 46 20 L 50 10 L 54 20 Z" fill="#888"/>
+  <text x="485" y="280" font-size="14">N</text>
+  <text x="25" y="20" font-size="14">t</text>
+
+  <path d="M 50 250 Q 100 245, 150 30" fill="none" stroke="#607D8B" stroke-width="3"/>
+  <circle cx="350" cy="50" r="5" fill="#607D8B"/>
+  <text x="365" y="55" font-size="14" fill="#333">y = 2ⁿ</text>
+</svg>
+++++
+
+== Графік O(N!)
+++++
+<svg viewBox="0 0 500 300" width="100%" height="300" style="background: #fdfdfd; border: 1px solid #ddd; font-family: sans-serif;">
+  <line x1="50" y1="260" x2="480" y2="260" stroke="#888" stroke-width="2"/>
+  <line x1="50" y1="20" x2="50" y2="260" stroke="#888" stroke-width="2"/>
+  <path d="M 480 256 L 490 260 L 480 264 Z" fill="#888"/>
+  <path d="M 46 20 L 50 10 L 54 20 Z" fill="#888"/>
+  <text x="485" y="280" font-size="14">N</text>
+  <text x="25" y="20" font-size="14">t</text>
+
+  <path d="M 50 240 L 70 230 L 90 30" fill="none" stroke="#000" stroke-width="3"/>
+  <circle cx="350" cy="30" r="5" fill="#000"/>
+  <text x="365" y="35" font-size="14" fill="#333">y = n!</text>
+</svg>
+++++
