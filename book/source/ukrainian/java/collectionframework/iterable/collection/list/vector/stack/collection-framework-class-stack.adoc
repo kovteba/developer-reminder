@@ -1,35 +1,32 @@
 ifndef::imagesdir[:imagesdir: ../../../../../../../imgs/]
 ifndef::stackdir[:stackdir: ../../../../../../../../../../examples/java/src/main/java/kovteba/collectionframework/iterable/collection/list/vector/stack]
-ifndef::stacktestdir[:stacktestdir: ../../../../../../../../../examples/java/src/main/java/kovteba/collectionframework/iterable/collection/list/vector/stack]
+ifndef::stacktestdir[:stacktestdir: ../../../../../../../../../../examples/java/src/main/java/kovteba/collectionframework/iterable/collection/list/vector/stack]
 
 [#java-collection-framework-stack]
-====== Stack
-`Stack` у Java — це *стек* (LIFO — Last In, First Out), який наслідує клас `Vector<E>` і реалізує інтерфейс `List<E>`.
-
-* `List<E>` — поведінка списку з індексованим доступом
-* LIFO-семантика — останній доданий елемент видаляється першим
+====== Stack class
+`Stack<E>` — *legacy* реалізація стека (LIFO — Last In, First Out) з пакету `java.util`, яка напряму наслідує `Vector<E>` і через нього реалізує `List<E>`. Забезпечує <<complexity-o1,O(1)>> `push`/`pop`/`peek` на вершині. Успадковує від `Vector` синхронізацію кожного методу (потокобезпечний, але повільний) і <<fail-fast,fail-fast>> ітератор.
 
 .Ієрархія наслідування
 [source,subs="normal"]
 ----
 Object
-  └── AbstractCollection<E>
-        └── AbstractList<E>
-              └── <<java-collection-framework-vector,Vector<E>>>
-                    └── <<java-collection-framework-stack,Stack<E>>>
+└── AbstractCollection<E>
+    └── AbstractList<E>
+        └── <<java-collection-framework-vector,Vector<E>>>
+            └── Stack<E>
 ----
+
+Реалізовані інтерфейси (усі — через `Vector`): `List<E>`, `RandomAccess`, `Cloneable`, `Serializable`.
+
+NOTE: `Stack` не додає жодного власного інтерфейсу — лише 5 нових методів (`push`, `pop`, `peek`, `empty`, `search`) поверх повного публічного API `Vector`. Саме це — головна архітектурна проблема класу, детальніше у <<java-collection-framework-stack-pitfalls,розділі про пастки>>.
 
 WARNING: `Stack` є застарілим (legacy) класом з Java 1.0. Для нового коду рекомендується використовувати `Deque<E>` (наприклад, `ArrayDeque`) замість `Stack`, оскільки `Stack` наслідує `Vector`, який є синхронізованим і повільнішим.
 
-.Конструктор Stack()
-[source,java]
-----
-Stack<String> stack = new Stack<>();
-----
+[#java-collection-framework-stack-class-constructors]
+.Конструктори:
+* `Stack()` — єдиний конструктор класу. Створює порожній стек; всередині — порожній масив, успадкований від `Vector` (`elementCount = 0`).
 
-*Що робить:* створює порожній стек. Всередині — порожній масив, успадкований від `Vector`. `elementCount = 0`.
-
-*Коли використовувати:* коли потрібна LIFO-семантика і ти свідомо працюєш зі старим кодом або API, що очікує `Stack`. У новому коді — краще `Deque`.
+NOTE: На відміну від `Vector`, `Stack` *не* має конструктора, що приймає `Collection` або початкову ємність. Якщо потрібно ініціалізувати стек з колекції — доведеться додавати елементи вручну (`addAll()`, успадкований від `Vector`) або одразу обирати `Deque`.
 
 [source,java]
 ----
@@ -38,52 +35,37 @@ stack.push(1);
 stack.push(2);
 stack.push(3);
 // [1, 2, 3] — вершина стеку: 3
-----
 
-NOTE: `Stack` має лише *один конструктор* — без параметрів. Немає конструктора, що приймає `Collection`. Якщо потрібно ініціалізувати стек з колекції — доведеться додавати елементи вручну або використовувати `Deque`.
-
-[source,java]
-----
-// Ініціалізація зі списку — вручну
+// Ініціалізація зі списку — вручну, через успадкований Vector.addAll():
 List<String> source = List.of("a", "b", "c");
-Stack<String> stack = new Stack<>();
-stack.addAll(source); // успадковано від Vector
-// вершина стеку: "c"
+Stack<String> fromList = new Stack<>();
+fromList.addAll(source); // вершина стеку: "c"
 ----
 
-[#java-collection-framework-stack-class-big-o-notation]
-.BigO notation для Stack:
-[cols="2,1,4", options="header"]
-|====
-|`pop()`                |O(1)       |Повертає і видаляє елемент з вершини (кінця масиву). Прямий доступ за індексом `elementCount - 1`
-|`peek()`               |O(1)       |Повертає елемент з вершини *без* видалення. Прямий доступ за індексом `elementCount - 1`, не змінює стан
-|`empty()`              |O(1)       |Перевіряє `size() == 0`. `size()` — поле `elementCount` у `Vector`
-|`search(Object o)`     |O(n)       |Лінійний пошук від вершини до дна з `equals()`. Повертає позицію від 1 (вершина) або -1 якщо не знайдено
-|`get(int index)`       |O(1)       |Успадковано від `Vector` — прямий доступ до масиву за індексом (але це не Stack-семантика!)
-|`add(E e)`             |O(1)*      |Успадковано від `Vector`, еквівалент `push`. Амортизовано O(1)
-|`remove(int index)`    |O(n)       |Успадковано від `Vector` — зсуває всі елементи після `index` вліво (System.arraycopy)
-|`remove(Object o)`     |O(n)       |Лінійний пошук по значенню + зсув елементів
-|`contains(Object o)`   |O(n)       |Лінійний перебір з `equals()` порівнянням, успадковано від `Vector`
-|`size()`               |O(1)       |Повертає поле `elementCount` з `Vector`
-|`clear()`              |O(n)       |Обнуляє всі елементи масиву, щоб GC міг їх зібрати, потім `elementCount = 0`
-|`toArray()`            |O(n)       |Копіює внутрішній масив через `Arrays.copyOf`
-|`iterator()`           |O(1)       |Створює ітератор, що починає з індексу 0 (дно стеку)
-|====
+[#java-collection-framework-stack-class-methods]
+.Методи:
+* <<java-collection-framework-stack-push-method,`push(E item)`>> — додає елемент на вершину, повертає його ж;
+* <<java-collection-framework-stack-pop-method,`pop()`>> — знімає і повертає елемент з вершини, кидає `EmptyStackException` якщо порожній;
+* <<java-collection-framework-stack-peek-method,`peek()`>> — повертає елемент з вершини без видалення, кидає `EmptyStackException` якщо порожній;
+* `empty()` — перевіряє, чи стек порожній (`size() == 0`);
+* <<java-collection-framework-stack-search-method,`search(Object o)`>> — шукає елемент, повертає 1-based відстань від вершини або -1;
+* `get(int index)` / `add(int index, E e)` / `remove(int index)` / `set(int index, E e)` / `subList()` — *успадковані від `Vector`*, порушують LIFO-семантику (див. <<java-collection-framework-stack-pitfalls,пастки>>).
 
-NOTE: Операції `push`, `pop`, `peek`, `empty`, `search` — це власні Stack-методи. Решта успадкована від `Vector` і порушує LIFO-інкапсуляцію: через `get(0)`, `add(0, e)`, `remove(0)` можна маніпулювати дном стеку, що є поганою практикою.
-
+[[java-collection-framework-stack-fields]]
 .Внутрішній устрій
 `Stack` не має власних полів — весь стан зберігається у `Vector<E>`:
 
 [source,java]
 ----
-// У Vector:
-protected Object[] elementData; // внутрішній масив
-protected int elementCount;     // кількість елементів
+// Успадковано напряму від Vector (protected — доступні підкласу):
+protected Object[] elementData;  // внутрішній масив
+protected int elementCount;      // кількість елементів
 protected int capacityIncrement; // крок росту (0 = подвоєння)
 ----
 
-Стек — це просто масив, де *кінець масиву є вершиною стеку*. `push` додає в кінець, `pop` бере з кінця.
+Стек — це просто масив, де *кінець масиву є вершиною стеку*. `push` додає в кінець, `pop` бере з кінця — жодної окремої структури даних, весь механізм зростання/копіювання масиву цілком успадкований від `Vector.grow()`.
+
+[[java-collection-framework-stack-modcount]]NOTE: `modCount` (успадкований врешті решт від `AbstractList`) працює так само, як у `Vector`/`ArrayList`: `push`/`pop`/`addAll`/`clear` — структурні зміни, що інкрементують його; `Iterator`/`for-each` над `Stack` так само fail-fast і кидають `ConcurrentModificationException` при паралельній зміні поза синхронізацією.
 
 Візуалізація стеку `[1, 2, 3]` (3 — вершина):
 
@@ -95,6 +77,7 @@ protected int capacityIncrement; // крок росту (0 = подвоєння)
                    вершина (elementCount - 1)
 ----
 
+[[java-collection-framework-stack-push-method]]
 .push(E item)
 [source,java]
 ----
@@ -114,11 +97,12 @@ public E push(E item) {
 
 // У Vector.addElement():
 // якщо elementCount == elementData.length → росте масив (копіювання O(n))
-// elementData[elementCount++] = obj; // інакше — просто O(1)
+// elementData[elementCount++] = obj;      // інакше — просто O(1)
 ----
 
-NOTE: Зростання масиву: якщо `capacityIncrement > 0` — збільшується на `capacityIncrement`, інакше — *подвоюється*. Амортизовано O(1).
+NOTE: Зростання масиву успадковане від `Vector.grow()`: якщо `capacityIncrement > 0` — збільшується на `capacityIncrement`, інакше — *подвоюється*. Амортизовано O(1), як і в `ArrayList`/`Vector`.
 
+[[java-collection-framework-stack-pop-method]]
 .pop()
 [source,java]
 ----
@@ -133,12 +117,15 @@ stack.pop();
 public synchronized E pop() {
     E obj;
     int len = size();
-    obj = peek();                  // отримуємо вершину
-    removeElementAt(len - 1);      // видаляємо останній елемент
+    obj = peek();               // отримуємо вершину (і перевіряємо, що стек не порожній)
+    removeElementAt(len - 1);   // видаляємо останній елемент
     return obj;
 }
 ----
 
+NOTE: `pop()`/`peek()` на порожньому стеку кидають `EmptyStackException` (unchecked, успадкований від `RuntimeException`) — а не `NoSuchElementException`, як можна було б очікувати за аналогією з `Deque`/`Queue`. Це ще один legacy-артефакт: клас `EmptyStackException` існує лише заради `Stack` і більше ніде в JDK не використовується.
+
+[[java-collection-framework-stack-peek-method]]
 .peek()
 [source,java]
 ----
@@ -157,6 +144,7 @@ public synchronized E peek() {
 }
 ----
 
+[[java-collection-framework-stack-search-method]]
 .search(Object o)
 [source,java]
 ----
@@ -173,35 +161,61 @@ stack.search("z"); // → -1
 [source,java]
 ----
 public synchronized int search(Object o) {
-    int i = lastIndexOf(o); // пошук з кінця (вершини)
+    int i = lastIndexOf(o); // пошук з кінця (вершини) — успадковано від Vector
     if (i >= 0)
         return size() - i;  // перетворює індекс масиву → позицію від вершини
     return -1;
 }
 ----
 
-WARNING: `search` повертає *відстань від вершини*, а не індекс масиву. Вершина = 1, елемент під нею = 2 і т.д. Це легко переплутати з `indexOf`, який повертає звичайний індекс.
+WARNING: `search` повертає *відстань від вершини* (1-based), а не індекс масиву (0-based). Вершина = 1, елемент під нею = 2 і т.д. Це легко переплутати з успадкованим `indexOf()`, який повертає звичайний 0-based індекс від дна.
 
-.Stack vs Deque — сучасна альтернатива
+[#java-collection-framework-stack-class-big-o-notation]
+.BigO notation для `Stack`
+[cols="2,1,4", options="header"]
+|===
+|Метод |Складність |Коментар
+|`push(E e)`             |O(1)*      |Успадковано від `Vector.addElement()`. Амортизовано O(1), O(n) при resize
+|`pop()`                 |O(1)       |Повертає і видаляє елемент з вершини (кінця масиву)
+|`peek()`                |O(1)       |Повертає елемент з вершини *без* видалення
+|`empty()`               |O(1)       |Перевіряє `size() == 0`
+|`search(Object o)`      |O(n)       |Лінійний пошук від вершини до дна з `equals()`
+|`get(int index)`        |O(1)       |Успадковано від `Vector` — пряме звернення (але це не Stack-семантика!)
+|`add(int index, E e)`   |O(n)       |Успадковано від `Vector` — зсув елементів, теж не Stack-семантика
+|`remove(int index)`     |O(n)       |Успадковано від `Vector` — зсуває всі елементи після `index` вліво
+|`remove(Object o)`      |O(n)       |Лінійний пошук по значенню + зсув елементів
+|`contains(Object o)`    |O(n)       |Лінійний перебір з `equals()`, успадковано від `Vector`
+|`size()`                |O(1)       |Повертає поле `elementCount` з `Vector`
+|`clear()`               |O(n)       |Обнуляє всі елементи масиву для GC, потім `elementCount = 0`
+|`toArray()`             |O(n)       |Копіює внутрішній масив через `Arrays.copyOf`
+|`iterator()`            |O(1)       |Створює ітератор, що починає з індексу 0 (дно стеку, не вершина!)
+|===
+
+NOTE: Операції `push`, `pop`, `peek`, `empty`, `search` — це власні Stack-методи. Решта успадкована від `Vector` і порушує LIFO-інкапсуляцію: через `get(0)`, `add(0, e)`, `remove(0)` можна маніпулювати дном стеку, що є поганою практикою.
+
+.Stack проти Deque — сучасна альтернатива
 [source,java]
 ----
 // Застарілий підхід:
-Stack<String> stack = new Stack<>();
-stack.push("x");
-stack.pop();
+Stack<String> legacy = new Stack<>();
+legacy.push("x");
+legacy.pop();
 
 // Сучасний підхід (рекомендовано):
-Deque<String> stack = new ArrayDeque<>();
-stack.push("x");   // addFirst
-stack.pop();       // removeFirst
+Deque<String> modern = new ArrayDeque<>();
+modern.push("x");   // addFirst
+modern.pop();       // removeFirst
 ----
 
-[cols="3,1,1", options="header"]
+[cols="2,1,1", options="header"]
 |===
-|Доступ до дна стеку            |❌ можливий через Vector|✅ заблоковано семантикою
-|Продуктивність                 |❌ нижча                |✅ вища
-|Рекомендовано для нового коду  |❌                      |✅
-|Реалізує List                  |✅ (але це мінус)       |❌
+|Критерій |`Stack` |`ArrayDeque` як стек
+|Доступ до дна стеку |можливий через успадкований `Vector` API |заблоковано семантикою — немає індексованого доступу
+|Потокобезпечність |так, кожен метод `synchronized` |ні, потрібна зовнішня синхронізація за потреби
+|Продуктивність |нижча (lock + подвоєння ємності) |вища (без lock, ×2 ємність теж, але без monitor overhead)
+|Реалізує `List` |так — і саме це проблема |ні, лише `Deque`/`Queue`
+|Виняток на порожньому стеку |`EmptyStackException` (лише для Stack) |`NoSuchElementException` (стандартний для колекцій)
+|Рекомендовано для нового коду |ні |так
 |===
 
 IMPORTANT: Документація Java явно рекомендує `Deque` замість `Stack`: _"A more complete and consistent set of LIFO stack operations is provided by the Deque interface"_.
@@ -225,7 +239,7 @@ stack.remove(0);        // видаляє з дна — Vector.remove(index)
 stack.set(1, "x");      // замінює другий елемент знизу — Vector.set(index, e)
 ----
 
-WARNING: `Stack` успадковує від `Vector` понад 50 публічних методів яких не повинно бути у стека (включно з `add(index, e)`, `remove(index)`, `get(index)`, `set(index, e)`, `subList()` та ін.). Це *порушує LIFO-інкапсуляцію* і є головною причиною чому `Stack` вважається поганим дизайном. Використовуй `ArrayDeque` замість `Stack`.
+WARNING: `Stack` успадковує від `Vector` понад 50 публічних методів, яких не повинно бути у стека (включно з `add(index, e)`, `remove(index)`, `get(index)`, `set(index, e)`, `subList()` та ін.). Це *порушує LIFO-інкапсуляцію* і є головною причиною, чому `Stack` вважається поганим дизайном (класична ілюстрація "favor composition over inheritance" — `Stack` мав би *містити* `Vector`, а не наслідувати його). Використовуй `ArrayDeque` замість `Stack`.
 
 .Рекомендована заміна — ArrayDeque
 [source,java]
@@ -234,17 +248,17 @@ WARNING: `Stack` успадковує від `Vector` понад 50 публіч
 Stack<String> stack = new Stack<>();
 stack.push("a");
 stack.push("b");
-String top = stack.pop();  // "b"
-String peek = stack.peek(); // "a"
-boolean empty = stack.empty(); // false
+String top = stack.pop();       // "b"
+String peek = stack.peek();     // "a"
+boolean empty = stack.empty();  // false
 
 // СУЧАСНИЙ код — ArrayDeque як стек (рекомендовано):
-Deque<String> stack = new ArrayDeque<>();
-stack.push("a");           // addFirst()
-stack.push("b");           // addFirst()
-String top = stack.pop();  // removeFirst() → "b"
-String peek = stack.peek(); // peekFirst() → "a"
-boolean empty = stack.isEmpty(); // false
+Deque<String> deque = new ArrayDeque<>();
+deque.push("a");                // addFirst()
+deque.push("b");                // addFirst()
+String top2 = deque.pop();      // removeFirst() → "b"
+String peek2 = deque.peek();    // peekFirst() → "a"
+boolean empty2 = deque.isEmpty(); // false
 // ArrayDeque: не синхронізований, немає зайвих Vector-методів, швидший
 ----
 
@@ -265,8 +279,25 @@ int pos4 = stack.search("z"); // → -1 (не знайдено)
 
 WARNING: `search()` повертає *1-based позицію від вершини*, а не 0-based індекс масиву. Це легко переплутати з `indexOf()` (який повертає 0-based індекс від дна). Значення `1` означає вершина, `size()` означає дно.
 
+.EmptyStackException замість NoSuchElementException
+[source,java]
+----
+Stack<String> empty = new Stack<>();
+empty.pop();  // EmptyStackException — НЕ NoSuchElementException!
 
+Deque<String> emptyDeque = new ArrayDeque<>();
+emptyDeque.pop(); // NoSuchElementException — стандартний для всіх сучасних колекцій
+----
 
+WARNING: Код, написаний за аналогією з `Deque`/`Queue`, може ловити не той виняток: `catch (NoSuchElementException e)` НЕ спіймає `EmptyStackException` від `Stack.pop()`/`peek()` — це різні гілки ієрархії винятків (`EmptyStackException extends RuntimeException` напряму, а не `NoSuchElementException`).
+
+.Підсумки:
+* `Stack<E>` — LIFO поверх `Vector<E>`: `push`/`pop`/`peek` за O(1), `search` за O(n) з 1-based результатом;
+* Наслідує (а не інкапсулює) `Vector` — це означає, що *весь* публічний API `Vector`/`List` доступний і на `Stack`, включно з довільним доступом до дна через `get`/`add(index,e)`/`remove(index)`;
+* Порожній стек кидає власний `EmptyStackException`, а не `NoSuchElementException` — лови саме його, а не за аналогією з `Deque`;
+* Синхронізований на рівні кожного методу (успадковано від `Vector`) — потокобезпечний, але повільніший за `ArrayDeque`;
+* Має лише один конструктор — без параметрів; ініціалізація з колекції можлива лише через успадкований `addAll()`;
+* Офіційна рекомендація JDK і галузі — `Deque`/`ArrayDeque` замість `Stack` у новому коді.
 
 
 Далі преведемо приклади використання класу `Stack`.
