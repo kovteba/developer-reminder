@@ -1,121 +1,78 @@
 ifndef::imagesdir[:imagesdir: ../../../../../../../imgs/]
-ifndef::linkedlistdir[:linkedlistdir: ../../../../../../../../../examples/java/src/main/java/kovteba/collectionframework/iterable/collection/list/linkedlist]
-ifndef::linkedlisttestdir[:linkedlisttestdir: ../../../../../../../../../examples/java/src/main/java/kovteba/collectionframework/iterable/collection/list/linkedlist]
+ifndef::copyonwritearraylistdir[:copyonwritearraylistdir: ../../../../../../../../../examples/java/src/main/java/kovteba/collectionframework/iterable/collection/list/copyonwritearraylist]
+ifndef::copyonwritearraylisttestdir[:copyonwritearraylisttestdir: ../../../../../../../../../examples/java/src/main/java/kovteba/collectionframework/iterable/collection/list/copyonwritearraylist]
 
 [#java-collection-framework-copyonwritearraylist]
-====== CopyOnWriteArrayList
-`CopyOnWriteArrayList` у Java — це *потокобезпечний список* з пакету `java.util.concurrent`, який реалізує інтерфейс `List<E>`. Головна ідея: *будь-яка мутуюча операція (add, set, remove) створює повну копію внутрішнього масиву*, тому читачі ніколи не блокуються і не бачать часткових змін.
-
-* `List<E>` — поведінка списку з індексованим доступом
-* `RandomAccess` — маркер прямого доступу за індексом O(1)
-* `Cloneable`, `Serializable` — підтримка клонування і серіалізації
+====== CopyOnWriteArrayList class
+`CopyOnWriteArrayList<E>` — це *потокобезпечний список на основі динамічного масиву* з пакету `java.util.concurrent`, що реалізує `List<E>`. Забезпечує <<complexity-o1,O(1)>> доступ до елементів за індексом і читання *без жодного блокування*. Головна ідея: будь-яка мутуюча операція (`add`, `set`, `remove`) під капотом створює *повну копію* внутрішнього масиву — тому читачі ніколи не блокуються і ніколи не бачать частково зміненого стану. Дозволяє зберігати `null`. Ітератор — *fail-safe* (не <<fail-fast,fail-fast>>): він працює над snapshot-ом і ніколи не кидає `ConcurrentModificationException`.
 
 .Ієрархія наслідування
 [source,subs="normal"]
 ----
 Object
-  └── AbstractCollection<E>
-        └── AbstractList<E>
-              └── <<java-collection-framework-copyonwritearraylist,CopyOnWriteArrayList<E>>>
+└── AbstractCollection<E>
+    └── AbstractList<E>
+        └── CopyOnWriteArrayList<E>
 ----
 
-NOTE: `CopyOnWriteArrayList` знаходиться у пакеті `java.util.concurrent`, а не `java.util`. Це єдиний потокобезпечний `List` у стандартній бібліотеці, що не використовує `synchronized` на читання.
+Реалізовані інтерфейси: `List<E>`, `RandomAccess`, `Cloneable`, `Serializable`.
 
-WARNING: `CopyOnWriteArrayList` *не підходить для частих записів*. Кожна мутація копіює весь масив — O(n) за часом і пам'яттю. Використовуй його лише коли читань значно більше ніж записів.
+NOTE: `CopyOnWriteArrayList` знаходиться у пакеті `java.util.concurrent`, а не `java.util`. Це єдиний потокобезпечний `List` у стандартній бібліотеці, чиї методи читання (`get`, `size`, ітерація) взагалі не використовують `synchronized`/`Lock` — вони лише читають `volatile`-посилання на поточний масив.
 
-.Конструктор CopyOnWriteArrayList()
-[source,java]
-----
-CopyOnWriteArrayList<String> list = new CopyOnWriteArrayList<>();
-----
+NOTE: [[java-collection-framework-copyonwritearraylist-randomaccess]]`RandomAccess` тут не косметика: попри "concurrent" у назві, доступ за індексом лишається справжнім O(1) `array[index]`, точно як у `ArrayList`. Копіюється весь масив лише при *записі*, а не при читанні.
 
-*Що робить:* створює порожній список. Внутрішній масив ініціалізується як `new Object[0]` — порожній масив, а не `null`.
+NOTE: `Cloneable` дозволяє `Object.clone()` без `CloneNotSupportedException`; `Serializable` дозволяє серіалізувати список (записується лише поточний snapshot елементів, без `lock`/`volatile`-полів).
 
-*Коли використовувати:* коли список збирається поступово у багатопотоковому середовищі, і читань буде набагато більше ніж записів.
+WARNING: [[java-collection-framework-copyonwritearraylist-write-heavy-warning]]`CopyOnWriteArrayList` *не підходить для частих записів*. Кожна мутація копіює весь масив — O(n) за часом і пам'яттю. Використовуй його лише коли читань на порядки більше ніж записів.
 
-[source,java]
-----
-CopyOnWriteArrayList<String> listeners = new CopyOnWriteArrayList<>();
-listeners.add("ListenerA");
-listeners.add("ListenerB");
-// безпечно читати з будь-якого потоку без synchronized
-----
-
-.Конструктор CopyOnWriteArrayList(Collection<? extends E> c)
-[source,java]
-----
-List<String> source = List.of("Java", "Python", "Go");
-CopyOnWriteArrayList<String> list = new CopyOnWriteArrayList<>(source);
-----
-
-*Що робить:* копіює елементи колекції у новий масив через `Arrays.copyOf`. Якщо `c` вже є `CopyOnWriteArrayList` — масив береться напряму без зайвого копіювання.
-
-*Коли використовувати:* конвертація існуючої колекції у потокобезпечний список для середовища з переважно читаючими потоками.
-
-.Конструктор CopyOnWriteArrayList(E[] toCopyIn)
-[source,java]
-----
-String[] arr = {"a", "b", "c"};
-CopyOnWriteArrayList<String> list = new CopyOnWriteArrayList<>(arr);
-----
-
-*Що робить:* копіює переданий масив через `Arrays.copyOf`. Оригінальний масив не змінюється — список має власну копію.
-
-*Коли використовувати:* коли дані вже є у вигляді масиву і потрібен потокобезпечний список.
-
-[[java-collection-framework-copyonwritearraylist-big-o-notation]]
-[#java-collection-framework-copyonwritearraylist-class-big-o-notation]
-.BigO notation для CopyOnWriteArrayList:
-[cols="2,1,4", options="header"]
-|===
-|`size()`                           |O(1)       |Повертає довжину внутрішнього масиву `array.length`
-|`isEmpty()`                        |O(1)       |Перевіряє `array.length == 0`
-|`contains(Object o)`               |O(n)       |Лінійний перебір масиву з `equals()`. Не блокується
-|`indexOf(Object o)`                |O(n)       |Лінійний перебір від початку. Не блокується
-|`lastIndexOf(Object o)`            |O(n)       |Лінійний перебір з кінця. Не блокується
-|`add(E e)`                         |O(n)       |Захоплює lock, копіює масив (`Arrays.copyOf`, +1 елемент), додає елемент у кінець нової копії, атомарно замінює посилання
-|`add(int index, E e)`              |O(n)       |Копіює масив із зсувом елементів після `index` вправо, вставляє елемент. Lock + copy
-|`addAll(Collection c)`             |O(n+m)     |Одна копія масиву для всіх елементів колекції (m). Ефективніше ніж m разів `add`
-|`addIfAbsent(E e)`                 |O(n)       |Лінійна перевірка наявності + copy якщо елемент відсутній. Атомарна операція під lock
-|`addAllAbsent(Collection c)`       |O(n*m)     |Для кожного елемента колекції — перевірка відсутності. Одна copy для всіх нових елементів
-|`set(int index, E e)`              |O(n)       |Копіює весь масив, замінює елемент на `index` у копії, атомарно замінює посилання
-|`remove(int index)`                |O(n)       |Копіює масив без елемента на `index` (зсув через `System.arraycopy`), атомарно замінює
-|`remove(Object o)`                 |O(n)       |Лінійний пошук + copy масиву без знайденого елемента. Якщо не знайдено — copy не відбувається
-|`removeAll(Collection c)`          |O(n*m)     |Перевірка кожного елемента на наявність у `c`, одна copy для всіх видалених
-|`retainAll(Collection c)`          |O(n*m)     |Залишає тільки елементи що є у `c`, одна copy
-|`clear()`                          |O(1)       |Замінює посилання на `new Object[0]` під lock. Сам по собі дешевий, але старий масив збирається GC
-|`iterator()`                       |O(1)       |Повертає ітератор над *незмінним snapshot* масиву на момент виклику. Ніколи не кидає `ConcurrentModificationException`
-|`listIterator()`                   |O(1)       |Те саме — snapshot ітератор. `set`, `add`, `remove` через ітератор кидають `UnsupportedOperationException`
-|`subList(from, to)`                |O(1)       |Повертає view на snapshot. Мутуючі операції через subList кидають `UnsupportedOperationException`
-|`toArray()`                        |O(n)       |Повертає копію поточного внутрішнього масиву через `Arrays.copyOf`
-|`forEach(Consumer)`                |O(n)       |Ітерує по snapshot масиву. Безпечно навіть якщо список змінюється паралельно
-|`removeIf(Predicate)`              |O(n)       |Збирає елементи що не задовольняють predicate, одна copy під lock
-|`replaceAll(UnaryOperator)`        |O(n)       |Застосовує оператор до кожного елемента, одна copy під lock
-|`sort(Comparator)`                 |O(n log n) |Копіює масив, сортує копію, атомарно замінює під lock
-|`clone()`                          |O(n)       |Поверхнева копія: новий `CopyOnWriteArrayList` з копією поточного масиву
-|===
-
+[[java-collection-framework-copyonwritearraylist-fields]]
 .Внутрішній устрій
 `CopyOnWriteArrayList` має мінімальну кількість полів:
 
 [source,java]
 ----
-// Реєстр блокування — один на весь список
-final transient ReentrantLock lock = new ReentrantLock();
+public class CopyOnWriteArrayList<E>
+        implements List<E>, RandomAccess, Cloneable, java.io.Serializable {
 
-// Посилання на поточний масив — volatile для видимості між потоками
-private transient volatile Object[] array;
+    final transient ReentrantLock lock = new ReentrantLock(); // захищає лише ЗАПИС
+
+    private transient volatile Object[] array; // volatile — видимість між потоками БЕЗ synchronized
+}
 ----
 
 Два ключові механізми:
 
-* `volatile` на `array` — гарантує що всі потоки бачать *актуальне посилання* на масив без `synchronized`
-* `ReentrantLock` — захищає *запис*, дозволяючи лише одному потоку одночасно модифікувати список
+* `volatile` на `array` — гарантує, що всі потоки бачать *актуальне посилання* на масив без `synchronized`;
+* `ReentrantLock` — захищає *запис*, дозволяючи лише одному потоку одночасно модифікувати список; читання лока не бачать взагалі.
 
-.Як працює модель читання без блокування
+[[java-collection-framework-copyonwritearraylist-modcount]]NOTE: На відміну від `ArrayList`/`LinkedList`, у `CopyOnWriteArrayList` немає поля `modCount` і немає fail-fast перевірок. Замість "виявляти й кидати виняток при паралельній зміні" архітектура просто *унеможливлює* конфлікт: читач тримає посилання на старий масив (`volatile` read), поки не прочитає нове; поточна мутація ніколи не змінює масив, який хтось уже читає.
+
+[#java-collection-framework-copyonwritearraylist-class-constructors]
+.Конструктори:
+* `CopyOnWriteArrayList()` — створює порожній список; внутрішній масив одразу `new Object[0]` (жодного lazy init, на відміну від `ArrayList`);
+* `CopyOnWriteArrayList(Collection <? extends E> c)` — копіює елементи `c` у новий масив через `Arrays.copyOf`. Якщо `c` вже є `CopyOnWriteArrayList` — масив береться напряму, без зайвого копіювання;
+* `CopyOnWriteArrayList(E[] toCopyIn)` — копіює переданий масив через `Arrays.copyOf`; оригінальний масив користувача не змінюється і не використовується напряму.
+
+[#java-collection-framework-copyonwritearraylist-class-methods]
+.Методи:
+* <<java-collection-framework-copyonwritearraylist-read-model,`get(int index)` / `size()` / `isEmpty()`>> — читання без будь-якого блокування;
+* <<java-collection-framework-copyonwritearraylist-add-impl,`add(E e)` / `add(int index, E e)` / `set(int index, E e)`>> — мутація через copy-on-write під lock;
+* <<java-collection-framework-copyonwritearraylist-addifabsent,`addIfAbsent(E e)` / `addAllAbsent(Collection c)`>> — атомарне додавання лише якщо елемента ще немає;
+* `remove(int index)` / `remove(Object o)` / `removeAll(Collection c)` / `retainAll(Collection c)` — видалення елементів (копія масиву без них);
+* `removeIf(Predicate <? super E> filter)` — атомарне видалення за умовою, одна копія масиву;
+* `replaceAll(UnaryOperator <E> operator)` — застосовує оператор до кожного елемента, одна копія масиву;
+* `sort(Comparator <? super E> comparator)` — сортує копію масиву й атомарно публікує її;
+* <<java-collection-framework-copyonwritearraylist-snapshot-iterator,`iterator()` / `listIterator()`>> — fail-safe snapshot-ітератори, без `remove`/`set`/`add`;
+* `subList(int start, int end)` — view на *snapshot*, а не на живий список;
+* `toArray()` / `toArray(T[] array)` — копія поточного внутрішнього масиву;
+* `contains(Object obj)` / `indexOf(Object obj)` / `lastIndexOf(Object obj)` — лінійний пошук по snapshot, без блокування;
+* `clear()` — атомарно замінює масив на `new Object[0]`;
+* `clone()` — поверхнева копія: новий список з копією поточного масиву.
+
+[[java-collection-framework-copyonwritearraylist-read-model]]
+.Як працює читання — повністю без lock
 [source,java]
 ----
-// Читання — повністю без lock:
 public E get(int index) {
     return elementAt(getArray(), index); // getArray() → volatile читання
 }
@@ -127,24 +84,25 @@ final Object[] getArray() {
 
 Читач завжди бачить *консистентний snapshot* масиву. Якщо запис відбувається паралельно — читач бачить або старий масив, або новий, але *ніколи не частково змінений*.
 
+[[java-collection-framework-copyonwritearraylist-add-impl]]
 .Як працює copy-on-write при add(E e)
 [source,java]
 ----
 list.add("D");
 // До:    array → ["A", "B", "C"]
 // Після: array → ["A", "B", "C", "D"]  (новий масив!)
-//                ["A", "B", "C"]        (старий масив — читачі що взяли його раніше продовжують бачити його)
+//                ["A", "B", "C"]        (старий масив — читачі, що взяли його раніше, продовжують бачити саме його)
 ----
 
 [source,java]
 ----
 public boolean add(E e) {
     synchronized (lock) {
-        Object[] es = getArray();           // беремо поточний масив
+        Object[] es = getArray();          // беремо поточний масив
         int len = es.length;
         es = Arrays.copyOf(es, len + 1);   // копіюємо з +1 місцем — O(n)
-        es[len] = e;                        // додаємо елемент у кінець копії
-        setArray(es);                       // volatile write — публікуємо нову копію
+        es[len] = e;                       // додаємо елемент у кінець копії
+        setArray(es);                      // volatile write — публікуємо нову копію
         return true;
     }
 }
@@ -154,43 +112,11 @@ final void setArray(Object[] a) {
 }
 ----
 
-NOTE: `volatile write` у `setArray` є *happens-before* бар'єром: всі зміни у новому масиві гарантовано видимі іншим потокам після того як вони прочитають нове посилання.
+NOTE: `volatile write` у `setArray` є *happens-before* бар'єром: усі зміни у новому масиві гарантовано видимі іншим потокам одразу після того, як вони прочитають нове посилання.
 
-.Snapshot ітератор — чому немає ConcurrentModificationException
-[source,java]
-----
-CopyOnWriteArrayList<String> list = new CopyOnWriteArrayList<>(
-    List.of("A", "B", "C")
-);
+`set(index, e)`, `remove(index)`, `sort()`, `removeIf()`, `replaceAll()` — та сама схема: захопити `lock` → взяти поточний масив → зробити копію потрібного розміру зі зміненим вмістом → `setArray()`. Різниця лише в тому, *як саме* формується нова копія (з елементом у кінці, без елемента на позиції, відсортована тощо).
 
-Iterator<String> it = list.iterator(); // бере snapshot: ["A","B","C"]
-
-list.add("D");  // інший потік — список тепер ["A","B","C","D"]
-list.add("E");  // ще один запис   ["A","B","C","D","E"]
-
-// Ітератор досі бачить snapshot на момент свого створення:
-while (it.hasNext()) {
-    System.out.println(it.next()); // A, B, C — без D і E
-}
-----
-
-[source,java]
-----
-// Всередині ітератора:
-static final class COWIterator<E> implements ListIterator<E> {
-    private final Object[] snapshot; // незмінний snapshot масиву
-    private int cursor;
-
-    COWIterator(Object[] es, int initialCursor) {
-        cursor = initialCursor;
-        snapshot = es; // просто зберігаємо посилання — O(1), не копіюємо!
-    }
-    // set/add/remove → UnsupportedOperationException
-}
-----
-
-WARNING: Snapshot ітератор — це *не копія даних*, а лише *посилання на старий масив*. Пам'ять старого масиву не звільняється поки є живі ітератори що тримають посилання на нього. При великих списках і довгих ітераціях це може призвести до підвищеного споживання пам'яті.
-
+[[java-collection-framework-copyonwritearraylist-addifabsent]]
 .addIfAbsent — атомарна перевірка і додавання
 [source,java]
 ----
@@ -204,21 +130,18 @@ set.addIfAbsent("A"); // → false, список: ["A","B"] (не змінивс
 ----
 public boolean addIfAbsent(E e) {
     Object[] snapshot = getArray();
-    return indexOfRange(e, snapshot, 0, snapshot.length) < 0  // перевірка без lock
-        && addIfAbsent(e, snapshot);                           // copy під lock
+    return indexOfRange(e, snapshot, 0, snapshot.length) < 0  // перевірка БЕЗ lock
+        && addIfAbsent(e, snapshot);                           // copy ПІД lock
 }
 
 private boolean addIfAbsent(E e, Object[] snapshot) {
     synchronized (lock) {
         Object[] current = getArray();
-        // перевіряємо знову під lock — масив міг змінитись між двома перевірками
-        if (current != snapshot) {
+        if (current != snapshot) {          // масив міг змінитись між двома перевірками
             int common = Math.min(snapshot.length, current.length);
             for (int i = 0; i < common; i++)
-                if (current[i] != snapshot[i] && eq(e, current[i]))
-                    return false;
-            if (indexOfRange(e, current, common, current.length) >= 0)
-                return false;
+                if (current[i] != snapshot[i] && eq(e, current[i])) return false;
+            if (indexOfRange(e, current, common, current.length) >= 0) return false;
         }
         Object[] newElements = Arrays.copyOf(current, current.length + 1);
         newElements[newElements.length - 1] = e;
@@ -228,52 +151,103 @@ private boolean addIfAbsent(E e, Object[] snapshot) {
 }
 ----
 
-NOTE: `addIfAbsent` використовує *double-check*: спочатку перевіряє без lock (оптимістично), потім знову під lock (захищено). Це зменшує contention у типовому випадку коли елемент вже є.
+NOTE: `addIfAbsent` використовує *double-check*: спочатку перевіряє без lock (оптимістично), потім знову під lock (захищено, бо масив міг змінитись між двома перевірками). Це зменшує contention у типовому випадку, коли елемент уже є.
+
+[[java-collection-framework-copyonwritearraylist-snapshot-iterator]]
+.Snapshot-ітератор — чому немає ConcurrentModificationException
+[source,java]
+----
+CopyOnWriteArrayList<String> list = new CopyOnWriteArrayList<>(List.of("A", "B", "C"));
+
+Iterator<String> it = list.iterator(); // бере snapshot: ["A","B","C"]
+
+list.add("D"); // інший потік — список тепер ["A","B","C","D"]
+list.add("E"); // ще один запис          ["A","B","C","D","E"]
+
+while (it.hasNext()) {
+    System.out.println(it.next()); // A, B, C — без D і E!
+}
+----
+
+[source,java]
+----
+static final class COWIterator<E> implements ListIterator<E> {
+    private final Object[] snapshot; // незмінний snapshot масиву
+    private int cursor;
+
+    COWIterator(Object[] es, int initialCursor) {
+        cursor = initialCursor;
+        snapshot = es; // просто зберігаємо посилання — O(1), не копіюємо!
+    }
+    // set()/add()/remove() → UnsupportedOperationException
+}
+----
+
+WARNING: Snapshot-ітератор — це *не копія даних*, а лише *посилання на старий масив*. Пам'ять старого масиву не звільняється, поки є живі ітератори, що тримають на нього посилання. При великих списках і довгих ітераціях це може призвести до підвищеного споживання пам'яті.
 
 .Типовий сценарій використання — список слухачів (Listener pattern)
 [source,java]
 ----
 public class EventBus {
     // Ідеальний випадок: рідкісна реєстрація, часте сповіщення
-    private final CopyOnWriteArrayList<EventListener> listeners =
-        new CopyOnWriteArrayList<>();
+    private final CopyOnWriteArrayList<EventListener> listeners = new CopyOnWriteArrayList<>();
 
-    public void register(EventListener l) {
-        listeners.addIfAbsent(l); // O(n) — але рідко
-    }
-
-    public void unregister(EventListener l) {
-        listeners.remove(l); // O(n) — але рідко
-    }
+    public void register(EventListener l)   { listeners.addIfAbsent(l); } // O(n) — але рідко
+    public void unregister(EventListener l) { listeners.remove(l); }      // O(n) — але рідко
 
     public void publish(Event event) {
-        // O(1) отримання snapshot + O(n) ітерація — часто, без блокувань
+        // O(1) отримання snapshot-посилання + O(n) ітерація — часто, без блокувань
         for (EventListener l : listeners) {
-            l.onEvent(event); // інші потоки можуть register/unregister паралельно
+            l.onEvent(event); // інші потоки можуть паралельно register/unregister
         }
     }
 }
 ----
 
-.CopyOnWriteArrayList vs альтернативи
-[cols="3,1,1,1", options="header"]
+TIP: [[java-collection-framework-copyonwritearraylist-cowarrayset]]Якщо потрібна саме *множина* (без дублікатів) з тими самими гарантіями lock-free читання — подивись на `CopyOnWriteArraySet<E>`, який всередині обгортає `CopyOnWriteArrayList` і використовує `addIfAbsent()` для унікальності.
+
+[[java-collection-framework-copyonwritearraylist-big-o-notation]]
+[#java-collection-framework-copyonwritearraylist-class-big-o-notation]
+.BigO notation для `CopyOnWriteArrayList`
+[cols="2,1,4", options="header"]
 |===
-|Читання без блокування             |✅ завжди                   |❌ synchronized на get          |✅ (але unsafe)
-|Запис                              |O(n) copy                   |O(1) + lock overhead            |O(1)*
-|`ConcurrentModificationException`  |❌ ніколи                   |✅ можлива при ітерації         |✅ можлива
-|===
-|Ітерація під зміни                 |✅ безпечна (snapshot)      |⚠️ потрібен зовнішній lock      |❌ небезпечна
-|===
-|`null` елементи                    |✅ дозволено                |✅ дозволено                    |✅ дозволено
-|===
-|Підходить для частих записів       |❌                          |⚠️ краще але contention         |✅
-|===
-|Підходить для частих читань        |✅ ідеально                 |⚠️ блокує читачів               |✅
-|===
-|===
+|Метод |Складність |Коментар
+|`size()` / `isEmpty()`             |O(1)       |Довжина поточного масиву `array.length`, без lock
+|`get(int index)`                   |O(1)       |Пряме читання `array[index]`, без lock
+|`contains` / `indexOf` / `lastIndexOf` |O(n)   |Лінійний перебір masиву з `equals()`. Не блокується
+|`add(E e)`                         |O(n)       |Lock → `Arrays.copyOf` (+1) → запис у копію → `setArray`
+|`add(int index, E e)`              |O(n)       |Копія масиву зі зсувом елементів після `index`. Lock + copy
+|`addAll(Collection c)`             |O(n+m)     |Одна копія масиву для всіх m елементів — дешевше за m разів `add`
+|`addIfAbsent(E e)`                 |O(n)       |Пошук без lock + copy під lock, якщо елемент відсутній
+|`addAllAbsent(Collection c)`       |O(n·m)     |Перевірка для кожного елемента колекції, одна copy для всіх нових
+|`set(int index, E e)`              |O(n)       |Копія всього масиву, заміна елемента в копії
+|`remove(int index)` / `remove(Object o)` |O(n) |Пошук (для Object) + копія без видаленого елемента
+|`removeAll`/`retainAll(Collection c)` |O(n·m)  |Перевірка кожного елемента на належність c, одна copy
+|`removeIf(Predicate)`              |O(n)       |Одна копія масиву без елементів, що задовольняють предикат
+|`clear()`                          |O(1)       |Заміна посилання на `new Object[0]` під lock; старий масив іде в GC
+|`iterator()` / `listIterator()`    |O(1)       |Просто зберігає посилання на поточний масив — snapshot без копіювання
+|`subList(from, to)`                |O(1)       |View над snapshot; мутації через subList кидають `UnsupportedOperationException`
+|`toArray()`                        |O(n)       |Копія поточного масиву через `Arrays.copyOf`
+|`forEach(Consumer)`                |O(n)       |Ітерує по snapshot; безпечно навіть якщо список змінюється паралельно
+|`replaceAll(UnaryOperator)`        |O(n)       |Одна копія масиву з застосованим оператором
+|`sort(Comparator)`                 |O(n log n) |Копіює масив, сортує копію, атомарно замінює під lock
+|`clone()`                          |O(n)       |Поверхнева копія: новий список з копією поточного масиву
 |===
 
-IMPORTANT: `CopyOnWriteArrayList` — вузькоспеціалізована структура. Використовуй її *виключно* коли: (1) читань на порядок більше ніж записів, (2) потрібна безпечна ітерація без зовнішньої синхронізації, (3) список відносно невеликий (копіювання великого масиву при кожному записі — дорого). Типові випадки: списки обробників подій, списки спостерігачів, конфігураційні списки що читаються тисячі разів і змінюються раз на хвилину.
+.CopyOnWriteArrayList проти альтернатив
+[cols="2,1,1,1", options="header"]
+|===
+|Характеристика |`CopyOnWriteArrayList` |`Collections.synchronizedList(new ArrayList<>())` |`Vector`
+|Читання без блокування |так, завжди |ні — `synchronized` на кожен `get` |ні — synchronized на кожен метод
+|Вартість запису |O(n), повне копіювання |O(1) + lock overhead |O(1) + synchronized overhead
+|`ConcurrentModificationException` |ніколи |можлива при неправильній ітерації |можлива при неправильній ітерації
+|Безпечна ітерація під паралельні зміни |так (snapshot) |ні, потрібен зовнішній `synchronized`-блок |ні, потрібен зовнішній `synchronized`-блок
+|`null`-елементи |дозволено |дозволено |дозволено
+|Підходить для частих записів |ні |так, але contention |так, але contention
+|Підходить для частих читань |ідеально |блокує читачів |блокує читачів
+|===
+
+IMPORTANT: `CopyOnWriteArrayList` — вузькоспеціалізована структура. Використовуй її *виключно* коли: (1) читань на порядок більше ніж записів; (2) потрібна безпечна ітерація без зовнішньої синхронізації; (3) список відносно невеликий (копіювання великого масиву при кожному записі — дорого). Типові випадки: списки обробників подій, списки спостерігачів, конфігураційні списки, що читаються тисячі разів і змінюються раз на хвилину. Для протилежного профілю (часті записи, черга задач) шукай `ConcurrentLinkedQueue`/`ConcurrentLinkedDeque` — вони lock-free без копіювання всього вмісту на кожен запис.
 
 [[java-collection-framework-copyonwritearraylist-pitfalls]]
 .Підводні камені та нюанси
@@ -293,7 +267,7 @@ for (int i = 0; i < 10_000; i++) temp.add("item" + i);
 list.addAll(temp); // ✅ лише ОДНА копія масиву
 ----
 
-WARNING: Масові вставки у `CopyOnWriteArrayList` через цикл — це O(n²) операцій копіювання. Якщо потрібно додати N елементів — збери їх у `ArrayList`, потім виклич `addAll()`: це одна копія замість N копій.
+WARNING: Масові вставки у `CopyOnWriteArrayList` через цикл — це O(n²) операцій копіювання. Якщо потрібно додати N елементів — збери їх у `ArrayList`, потім виклич `addAll()`: це одна копія замість N.
 
 .Ітератор — snapshot, не live view
 [source,java]
@@ -306,7 +280,7 @@ while (it.hasNext()) {
 }
 ----
 
-NOTE: Snapshot-ітератор — це *feature*, не bug. Він гарантує консистентне читання без `ConcurrentModificationException` навіть якщо список активно змінюється паралельно. Але будь готовий що ітератор не бачить змін які відбулись після його створення.
+NOTE: Snapshot-ітератор — це *feature*, не bug. Він гарантує консистентне читання без `ConcurrentModificationException`, навіть якщо список активно змінюється паралельно. Але будь готовий, що ітератор не бачить змін, які відбулись після його створення.
 
 .Ітератор не підтримує remove()
 [source,java]
@@ -322,4 +296,11 @@ list.removeIf(s -> s.equals("a")); // ✅ атомарна операція пі
 
 WARNING: `Iterator.remove()`, `Iterator.set()` та `Iterator.add()` завжди кидають `UnsupportedOperationException` для `CopyOnWriteArrayList`. Для фільтруючого видалення використовуй `removeIf(Predicate)` — він виконує одну атомарну копію масиву для всіх видалень.
 
-NOTE: `CopyOnWriteArrayList` підходить якщо виконуються всі три умови: (1) reads >> writes — читань у 99%+ операцій; (2) список малий — до кількох тисяч елементів (копіювання великого масиву дорого); (3) lock-free reads критичні — наприклад, listeners/observers що викликаються на кожну подію без блокувань.
+.Підсумки:
+* Читання (`get`, `size`, ітерація) — O(1)/O(n) без жодного блокування, ідеально для read-heavy багатопотокових сценаріїв;
+* Будь-яка мутація (`add`, `set`, `remove`, `sort`, `removeIf`...) — O(n), повна копія внутрішнього масиву під `ReentrantLock`;
+* Ітератор — fail-safe snapshot, ніколи не кидає `ConcurrentModificationException`, але й не бачить змін після свого створення;
+* `Iterator.remove()/set()/add()` завжди кидають `UnsupportedOperationException` — мутуй через методи самого списку, а не через ітератор;
+* Масові вставки в циклі — антипатерн (O(n²)); завжди збирай у `ArrayList` і роби один `addAll()`;
+* Не заміна для write-heavy черг — там доречніші `ConcurrentLinkedQueue`/`ConcurrentLinkedDeque` або `BlockingQueue`-реалізації;
+* `RandomAccess` реалізовано по-справжньому: доступ за індексом лишається O(1), навіть попри "concurrent" у назві.

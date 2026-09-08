@@ -1,20 +1,45 @@
 ifndef::imagesdir[:imagesdir: ../../../../../imgs/]
 
 [#java-collection-framework-vector]
-====== Vector
-`Vector<E>` — *legacy* реалізація динамічного масиву об'єктів з пакету `java.util`, яка з'явилась у Java 1.0. Функціонально ідентична `ArrayList`, але всі методи синхронізовані (`synchronized`). Через це `Vector` є потокобезпечним, але повільним. Не рекомендується до використання у новому коді — замість нього використовуй `ArrayList` (однопотоковий код) або `CopyOnWriteArrayList` (багатопотоковий).
+====== Vector class
+`Vector<E>` — *legacy* реалізація динамічного масиву об'єктів з пакету `java.util`, яка з'явилась ще у Java 1.0 (задовго до Collections Framework у Java 1.2). Забезпечує <<complexity-o1,O(1)>> доступ до елементів за індексом. Функціонально майже ідентична `ArrayList`, але *кожен* метод синхронізований (`synchronized`) — через це `Vector` потокобезпечний, але повільніший навіть в однопотоковому коді. Дозволяє зберігати `null`. Ітератор — <<fail-fast,fail-fast>>, так само як у `ArrayList`.
 
 .Ієрархія наслідування
 [source,subs="normal"]
 ----
 Object
-  └── AbstractCollection<E>
-        └── AbstractList<E>
-              └── <<java-collection-framework-vector,Vector<E>>>
-                    └── <<java-collection-framework-stack,Stack<E>>>
+└── AbstractCollection<E>
+    └── AbstractList<E>
+        └── Vector<E>
+            └── <<java-collection-framework-stack,Stack<E>>>
 ----
 
-WARNING: `Vector` є *legacy* класом. Синхронізація на рівні методів блокує весь об'єкт — при паралельному доступі тисяч потоків це створює вузьке місце. Для безпечного багатопотокового списку використовуй `CopyOnWriteArrayList`.
+Реалізовані інтерфейси: `List<E>`, `RandomAccess`, `Cloneable`, `Serializable` — той самий набір, що й у `ArrayList`.
+
+NOTE: `RandomAccess` тут означає те саме, що й для `ArrayList`: `get(index)` — справжнє O(1), і алгоритми `Collections.*` можуть безпечно обирати index-based стратегію.
+
+NOTE: На відміну від `LinkedList`, `Vector` *не* реалізує `Deque`/`Queue`. Формально це лише `List`, хоча має власний набір "стекоподібних" методів (`firstElement()`, `lastElement()`) — див. <<java-collection-framework-vector-legacy-api,нижче>>.
+
+WARNING: `Vector` є *legacy* класом. Синхронізація на рівні кожного методу блокує весь об'єкт — при паралельному доступі багатьох потоків це створює вузьке місце (monitor contention), навіть коли всі операції — лише читання. Для нового коду: `ArrayList` (однопотоковий) або `CopyOnWriteArrayList` (read-heavy багатопотоковий) чи `Collections.synchronizedList(new ArrayList<>())` (рівномірне навантаження).
+
+[[java-collection-framework-vector-fields]]
+.Внутрішня структура
+[source,java]
+----
+public class Vector<E> extends AbstractList<E>
+        implements List<E>, RandomAccess, Cloneable, java.io.Serializable {
+
+    protected Object[] elementData;    // масив елементів — PROTECTED (не package-private, як у ArrayList!)
+    protected int elementCount;        // кількість елементів (аналог size у ArrayList)
+    protected int capacityIncrement;   // якщо > 0 — крок лінійного росту замість подвоєння
+}
+----
+
+NOTE: Поля `protected`, а не `private`/package-private — свідоме архітектурне рішення 1996 року: `Vector` спроєктований для наслідування (`Stack extends Vector` напряму читає й пише `elementData`/`elementCount`). `ArrayList` натомість забороняє таке наслідування "знизу" — сучасніший підхід composition-over-inheritance.
+
+[[java-collection-framework-vector-modcount]]`modCount` (успадковане поле `AbstractList`) працює так само, як в `ArrayList`: збільшується при структурних змінах, ітератор фіксує `expectedModCount` і кидає `ConcurrentModificationException` при розбіжності. Але через `synchronized`-методи структурні зміни *між собою* не гонять одна одну — вони лише не захищені від зміни *під час* зовнішньої (не-synchronized) ітерації через `for-each`.
+
+NOTE: [[java-collection-framework-vector-serialization]]Поля `elementData`/`elementCount`/`capacityIncrement` у `Vector` *не* позначені `transient` (на відміну від `ArrayList.elementData`). Стандартна серіалізація Java записує масив *цілком*, включно з невикористаною ємністю — `Vector(1000)` з одним елементом серіалізується з усіма 1000 "порожніми" комірками. `ArrayList` натомість має ручні `writeObject`/`readObject`, що серіалізують лише реальні елементи.
 
 [#java-collection-framework-vector-constructors]
 .Конструктори класу `Vector`
@@ -23,11 +48,65 @@ WARNING: `Vector` є *legacy* класом. Синхронізація на рі
 * `Vector(int initialCapacity, int capacityIncrement)` — при переповненні збільшує масив не вдвічі, а на `capacityIncrement` елементів;
 * `Vector(Collection<? extends E> c)` — копіює елементи з переданої колекції.
 
-NOTE: На відміну від `ArrayList` (збільшується на 50%), `Vector` за замовчуванням *подвоює* свій внутрішній масив при переповненні — `newCapacity = 2 * oldCapacity`. Це може призвести до зайвого споживання пам'яті.
+[#java-collection-framework-vector-methods]
+.Методи:
+* <<java-collection-framework-vector-grow,`grow()` — формула зростання ємності>>;
+* <<java-collection-framework-vector-legacy-api,`addElement`/`removeElement`/`elementAt`/`firstElement`/`lastElement`/`elements()`>> — legacy API з Java 1.0;
+* `add(E e)` / `remove(Object o)` / `get(int index)` / `set(int index, E e)` — сучасний `List<E>` API з Java 1.2, працює над тим самим масивом;
+* `ensureCapacity(int minCapacity)` / `trimToSize()` — керування ємністю вручну, як у `ArrayList`;
+* `copyInto(Object[] anArray)` — legacy-спосіб скопіювати вміст у вже існуючий масив (попередник `toArray(T[])`);
+* `clone()` — створює поверхневу копію (shallow copy), синхронізовано.
+
+[[java-collection-framework-vector-grow]]
+.grow() — формула зростання ємності
+[source,java]
+----
+private Object[] grow(int minCapacity) {
+    int oldCapacity = elementData.length;
+    int newCapacity = ArraysSupport.newLength(oldCapacity,
+            minCapacity - oldCapacity,                          // мінімальний приріст
+            capacityIncrement > 0 ? capacityIncrement : oldCapacity); // «бажаний» приріст
+    return elementData = Arrays.copyOf(elementData, newCapacity);
+}
+----
+
+Якщо `capacityIncrement <= 0` (типовий випадок за замовчуванням) — "бажаний" приріст дорівнює `oldCapacity`, тобто ємність *подвоюється* (`newCapacity ≈ 2 * oldCapacity`). Якщо `capacityIncrement > 0` — приріст завжди лінійний і фіксований, скільки б елементів не було вже в списку.
+
+[source,text]
+----
+Зростання ємності при послідовних add() (capacityIncrement не задано):
+Capacity: 10 → 20 → 40 → 80 → 160 → 320 → ...
+Множник:       ×2 при кожному resize
+----
+
+NOTE: На відміну від `ArrayList` (зростання на ~50%, `oldCapacity + (oldCapacity >> 1)`), `Vector` за замовчуванням *подвоює* ємність. Формула через `ArraysSupport.newLength()` та сама, що й у `ArrayList.grow()` — та сама перевірка на переповнення `int` — відрізняється лише переданий "бажаний приріст".
+
+[[java-collection-framework-vector-legacy-api]]
+.Два паралельних API в одному класі
+`Vector` — єдиний клас у Collections Framework, що має *дві повні паралельні системи методів* над одним і тим самим масивом: legacy-набір з Java 1.0 (до появи `Collection`/`List`) і сучасний `List<E>` API, доданий у Java 1.2 для зворотної сумісності.
+
+[cols="2,2,3", options="header"]
+|===
+|Legacy (Java 1.0) |Сучасний еквівалент (List, Java 1.2+) |Коментар
+|`addElement(e)` |`add(e)` |Legacy повертає `void`, сучасний — `boolean`
+|`removeElement(o)` |`remove(o)` |Ідентична семантика, різні сигнатури повернення
+|`removeElementAt(i)` |`remove(int i)` |
+|`elementAt(i)` |`get(i)` |
+|`setElementAt(e, i)` |`set(i, e)` |⚠️ порядок аргументів *протилежний*!
+|`insertElementAt(e, i)` |`add(i, e)` |Теж протилежний порядок аргументів
+|`firstElement()` |немає прямого аналога до Java 21 |Кидає `NoSuchElementException`, як майбутній `List.getFirst()`
+|`lastElement()` |немає прямого аналога до Java 21 |Кидає `NoSuchElementException`, як майбутній `List.getLast()`
+|`removeAllElements()` |`clear()` |
+|`elements()` |`iterator()` |`Enumeration` — read-only, без `remove()`
+|===
+
+WARNING: `setElementAt(Object obj, int index)` та `insertElementAt(Object obj, int index)` приймають елемент *першим* аргументом, а індекс — другим. Це протилежно до `set(int index, E e)`/`add(int index, E e)` з `List`. Легко переплутати порядок при міграції старого коду.
+
+TIP: `firstElement()`/`lastElement()` — це, по суті, `getFirst()`/`getLast()` за чверть століття до появи `SequencedCollection` у Java 21. Ідея "прямого доступу до країв" не нова — просто `Vector` не отримав повноцінного `Deque`-інтерфейсу.
 
 [#java-collection-framework-vector-big-o-notation]
 .BigO notation для `Vector`
-Аналогічна `ArrayList`, але кожен метод огорнутий `synchronized` — додаткові витрати на захоплення монітора при кожному виклику:
+Складність аналогічна `ArrayList`, але кожен метод огорнутий `synchronized` — додаткові витрати на захоплення монітора при кожному виклику, навіть коли конкуренції за нього немає:
 
 [cols="2,1,4", options="header"]
 |===
@@ -37,21 +116,26 @@ NOTE: На відміну від `ArrayList` (збільшується на 50%)
 |`remove(int index)`                    |O(n)           |Зсув елементів після видаленого + блокування
 |`remove(Object o)`                     |O(n)           |Лінійний пошук + зсув + блокування
 |`contains(Object o)`                   |O(n)           |Лінійний перебір через `equals()`
+|`firstElement()` / `lastElement()`     |O(1)           |Прямий доступ до `elementData[0]`/`elementData[elementCount-1]`
 |`size()`                               |O(1)           |Повертає поле `elementCount`, але `synchronized`!
 |`isEmpty()`                            |O(1)           |`elementCount == 0`, але `synchronized`!
 |`clear()`                              |O(n)           |Обнуляє всі елементи для GC, `elementCount = 0`
 |`addAll(Collection c)`                 |O(m)           |`System.arraycopy` блоком, блокування на весь час
 |`sort(Comparator c)`                   |O(n log n)     |TimSort, блокування на весь час сортування
-|`iterator()`                           |O(1)           |Створює ітератор — fail-fast, але сам `iterator()` виклик синхронізований
+|`iterator()`                           |O(1)           |Створює ітератор — fail-fast, але сам виклик `iterator()` синхронізований
 |`elements()`                           |O(1)           |Повертає legacy `Enumeration` — не підтримує `remove()`
+|`copyInto(Object[] a)`                 |O(n)           |`System.arraycopy` у переданий масив, блокування на весь час
+|`clone()`                              |O(n)           |Поверхнева копія, синхронізовано
 |===
 
-.Vector vs ArrayList vs CopyOnWriteArrayList
-[cols="3,1,1,1", options="header"]
+.Vector проти альтернатив
+[cols="2,1,1,1", options="header"]
 |===
-|Продуктивність                 |❌ низька              |✅ висока          |⚠️ повільний write
-|Ріст масиву                    |×2 (або +increment)    |×1.5               |нова копія при write
-|Рекомендовано                  |❌ legacy              |✅ однопотоковий   |✅ read-heavy многопотоковий
+|Характеристика |`Vector` |`ArrayList` |`CopyOnWriteArrayList`
+|Продуктивність |низька (lock на кожен метод) |висока |повільний запис, швидке читання
+|Потокобезпечність |так (метод-рівень) |ні |так (без блокування на читання)
+|Ріст масиву |×2 (або лінійно через `capacityIncrement`) |×1.5 |нова копія масиву при кожному записі
+|Рекомендовано для нового коду |ні — legacy |так, однопотоковий код |так, read-heavy багатопотоковий код
 |===
 
 [[java-collection-framework-vector-pitfalls]]
@@ -76,7 +160,9 @@ synchronized (v) {
 }
 ----
 
-WARNING: Кожен окремий метод `Vector` є потокобезпечним, але складені операції — ні. Між двома synchronized-методами інший потік може змінити стан списку. Для атомарних складених операцій потрібна зовнішня синхронізація через `synchronized (v) { ... }`.
+WARNING: Кожен окремий метод `Vector` є потокобезпечним, але складені операції — ні. Між двома synchronized-методами інший потік може змінити стан списку. Для атомарних складених операцій потрібна зовнішня синхронізація через `synchronized (v) { ... }` — так само, як і для `Collections.synchronizedList()`.
+
+WARNING: Ітерація через `for-each`/`Iterator` над `Vector` *не* синхронізована сама по собі — кожен окремий виклик `next()` є атомарним, але паралельний `add()`/`remove()` іншим потоком між викликами `next()` спричинить `ConcurrentModificationException`, точнісінько як у `ArrayList`. Для безпечної ітерації потрібен зовнішній `synchronized (v) { for (String s : v) {...} }`.
 
 .Коефіцієнт росту ×2 vs ×1.5 у ArrayList — більше витрат пам'яті
 [source,java]
@@ -89,7 +175,7 @@ WARNING: Кожен окремий метод `Vector` є потокобезпе
 // Vector capacity    ≈ 131 072 (≈31% надлишок)
 ----
 
-NOTE: `Vector` подвоює розмір при переповненні (`newCapacity = 2 * oldCapacity`), тоді як `ArrayList` збільшує на 50% (`oldCapacity + oldCapacity >> 1`). Це означає що `Vector` витрачає більше пам'яті. Якщо заданий `capacityIncrement > 0`, то зростання лінійне: `newCapacity = oldCapacity + capacityIncrement`.
+NOTE: `Vector` подвоює розмір при переповненні (`newCapacity = 2 * oldCapacity`), тоді як `ArrayList` збільшує на 50% (`oldCapacity + (oldCapacity >> 1)`). Якщо заданий `capacityIncrement > 0`, зростання лінійне: `newCapacity = oldCapacity + capacityIncrement`.
 
 .Legacy Enumeration vs сучасний Iterator
 [source,java]
@@ -112,6 +198,8 @@ while (it.hasNext()) {
 v.removeIf(s -> s.equals("b")); // ✅ Java 8+
 ----
 
+TIP: `Enumeration` швидший за `Iterator` лише мікроскопічно (не fail-fast, немає перевірки `modCount`) — але ціна цього мікровиграшу дуже висока: код, що покладається на `Enumeration`, ламається мовчки при паралельній зміні списку замість кидати `ConcurrentModificationException`. У новому коді `Enumeration` не варто обирати заради швидкості.
+
 .capacityIncrement — контроль кроку зростання
 [source,java]
 ----
@@ -122,6 +210,29 @@ Vector<String> v = new Vector<>(10, 5);
 // Корисно якщо пам'ять обмежена і відомий очікуваний крок росту
 ----
 
+.Серіалізація тягне за собою всю ємність
+[source,java]
+----
+Vector<String> v = new Vector<>(1000);
+v.add("only one element");
+// elementCount == 1, capacity == 1000
+
+// Після серіалізації і десеріалізації:
+// elementCount == 1, capacity ЛИШАЄТЬСЯ 1000 — на відміну від ArrayList!
+// Серіалізований потік байтів містить усі 1000 комірок (999 — null).
+----
+
+WARNING: Оскільки `elementData` у `Vector` не `transient`, серіалізація зберігає *всю* ємність, а не лише реальні елементи. Якщо `Vector` створювався з великим запасом ємності (`ensureCapacity`), серіалізований розмір буде значно більшим за фактичний вміст. `ArrayList` цієї проблеми не має завдяки ручним `writeObject`/`readObject`.
+
 WARNING: У новому коді *завжди* використовуй `ArrayList` замість `Vector`. Для потокобезпечності — `CopyOnWriteArrayList` (reads >> writes) або `Collections.synchronizedList(new ArrayList<>())` (рівномірне навантаження). `Vector` залишений лише для зворотної сумісності.
 
 IMPORTANT: *Не використовуй `Vector` у новому коді.* Клас `Vector` є legacy з Java 1.0 і залишений лише для зворотної сумісності. `Stack` наслідує `Vector` і теж є legacy — замість нього використовуй `Deque` / `ArrayDeque`.
+
+.Підсумки:
+* Функціонально майже те саме, що `ArrayList`, але кожен метод — `synchronized`, тому повільніший навіть без конкуренції потоків;
+* Ємність подвоюється (×2) за замовчуванням — більше витрат пам'яті, ніж `ArrayList` (×1.5); лінійний крок можна задати через `capacityIncrement`;
+* Має ДВА паралельних API над одним масивом: legacy (`addElement`, `elementAt`, `firstElement`...) з Java 1.0 і сучасний `List<E>` з Java 1.2;
+* `synchronized` захищає лише окремий метод, не складені операції — для check-then-act потрібен зовнішній `synchronized (v) {...}`;
+* Серіалізує всю ємність цілком (поля не `transient`), на відміну від `ArrayList`;
+* `Stack` наслідує `Vector` напряму (`protected` поля дозволяють це) — обидва вважаються legacy;
+* Для нового коду: `ArrayList` (однопотоковий) або `CopyOnWriteArrayList`/`Collections.synchronizedList()` (багатопотоковий).
